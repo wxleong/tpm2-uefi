@@ -1,0 +1,67 @@
+diff --git a/MdeModulePkg/Application/HelloWorld/HelloWorld.c b/MdeModulePkg/Application/HelloWorld/HelloWorld.c
+index ab581c040c..95ed900c7d 100644
+--- a/MdeModulePkg/Application/HelloWorld/HelloWorld.c
++++ b/MdeModulePkg/Application/HelloWorld/HelloWorld.c
+@@ -11,6 +11,7 @@
+ #include <Library/PcdLib.h>
+ #include <Library/UefiLib.h>
+ #include <Library/UefiApplicationEntryPoint.h>
++#include <Library/Tpm2CommandLib.h>
+ 
+ //
+ // String token ID of help message text.
+@@ -56,5 +57,18 @@ UefiMain (
+     }
+   }
+ 
++  do {
++    CHAR8  Family[4];
++    EFI_STATUS  Status;
++
++    Status = Tpm2GetCapabilityFamily(Family);
++    if (EFI_ERROR (Status)) {
++      Print (L"Failed in Tpm2GetCapabilityFamily. Status = %d\n", Status);
++      break;
++    }
++
++    Print (L"TPM family: %02x%02x%02x%02x\n", Family[0], Family[1], Family[2], Family[3]);
++  } while (0);
++
+   return EFI_SUCCESS;
+ }
+diff --git a/MdeModulePkg/Application/HelloWorld/HelloWorld.inf b/MdeModulePkg/Application/HelloWorld/HelloWorld.inf
+index 4520a370e5..5da38049f9 100644
+--- a/MdeModulePkg/Application/HelloWorld/HelloWorld.inf
++++ b/MdeModulePkg/Application/HelloWorld/HelloWorld.inf
+@@ -40,11 +40,13 @@
+ [Packages]
+   MdePkg/MdePkg.dec
+   MdeModulePkg/MdeModulePkg.dec
++  SecurityPkg/SecurityPkg.dec
+ 
+ [LibraryClasses]
+   UefiApplicationEntryPoint
+   UefiLib
+   PcdLib
++  Tpm2CommandLib
+ 
+ [FeaturePcd]
+   gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
+diff --git a/MdeModulePkg/MdeModulePkg.dsc b/MdeModulePkg/MdeModulePkg.dsc
+index b1d8346186..a9875fc86e 100644
+--- a/MdeModulePkg/MdeModulePkg.dsc
++++ b/MdeModulePkg/MdeModulePkg.dsc
+@@ -104,6 +104,13 @@
+   VariablePolicyHelperLib|MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf
+   MmUnblockMemoryLib|MdePkg/Library/MmUnblockMemoryLib/MmUnblockMemoryLibNull.inf
+ 
++  #
++  # TPM2 library
++  #
++  Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2DeviceLibDTpm.inf
++  Tpm2CommandLib|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
++
++
+ [LibraryClasses.EBC.PEIM]
+   IoLib|MdePkg/Library/PeiIoLibCpuIo/PeiIoLibCpuIo.inf
+ 
