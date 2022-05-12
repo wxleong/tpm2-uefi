@@ -46,18 +46,10 @@ $ export EDK_TOOLS_PATH=~/edk2/BaseTools
 $ . edksetup.sh BaseTools
 ```
 
-Edit `~/edk2/Conf/target.txt`:
-```
-ACTIVE_PLATFORM       = MdeModulePkg/MdeModulePkg.dsc
-TOOL_CHAIN_TAG        = GCC5
-TARGET_ARCH           = IA32 / X64 / IA32 X64
-MAX_CONCURRENT_THREAD_NUMBER = 1 # > 1 to enable multi-threaded build
-```
-
 Build Hello World:
 ```
 $ cd ~/edk2
-$ build
+$ build -p MdeModulePkg/MdeModulePkg.dsc -t GCC5 -a X64 -n $(nproc)
 $ ls Build/MdeModule/DEBUG_*/*/HelloWorld.efi
 ```
 

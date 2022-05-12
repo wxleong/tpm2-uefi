@@ -1,30 +1,75 @@
 diff --git a/MdeModulePkg/Application/HelloWorld/HelloWorld.c b/MdeModulePkg/Application/HelloWorld/HelloWorld.c
-index ab581c040c..95ed900c7d 100644
+index ab581c040c..07e8984454 100644
 --- a/MdeModulePkg/Application/HelloWorld/HelloWorld.c
 +++ b/MdeModulePkg/Application/HelloWorld/HelloWorld.c
-@@ -11,6 +11,7 @@
+@@ -11,6 +11,8 @@
  #include <Library/PcdLib.h>
  #include <Library/UefiLib.h>
  #include <Library/UefiApplicationEntryPoint.h>
 +#include <Library/Tpm2CommandLib.h>
++#include <Library/Tpm2DeviceLib.h>
  
  //
  // String token ID of help message text.
-@@ -56,5 +57,18 @@ UefiMain (
+@@ -56,5 +58,62 @@ UefiMain (
      }
    }
  
++  /**
++   * More APIs at ~/edk2/SecurityPkg/Include/Library/Tpm2CommandLib.h
++   */
 +  do {
 +    CHAR8  Family[4];
 +    EFI_STATUS  Status;
++    UINT32  FirmwareVersion1;
++    UINT32  FirmwareVersion2;
 +
-+    Status = Tpm2GetCapabilityFamily(Family);
++    TPMS_CAPABILITY_DATA  TpmCap;
++    TPMI_YES_NO           MoreData;
++
++    Status = Tpm2RequestUseTpm ();
++    if (EFI_ERROR (Status)) {
++      Print (L"Failed in Tpm2RequestUseTpm. Status = %d\n", Status);
++      return Status;
++    }
++
++    Status = Tpm2Startup (TPM_SU_CLEAR);
++    if (EFI_ERROR (Status)) {
++      Print (L"Failed in Tpm2Startup. Status = %d\n", Status);
++      break;
++    }
++
++    Status = Tpm2GetCapabilityFamily (Family);
 +    if (EFI_ERROR (Status)) {
 +      Print (L"Failed in Tpm2GetCapabilityFamily. Status = %d\n", Status);
 +      break;
 +    }
 +
-+    Print (L"TPM family: %02x%02x%02x%02x\n", Family[0], Family[1], Family[2], Family[3]);
++    Print (L"TPM family (TPM2_PT_FAMILY_INDICATOR): %02x%02x%02x%02x\n", Family[0], Family[1], Family[2], Family[3]);
++
++    Status = Tpm2GetCapability (
++               TPM_CAP_TPM_PROPERTIES,
++               TPM_PT_REVISION,
++               1,
++               &MoreData,
++               &TpmCap
++             );
++    if (EFI_ERROR (Status)) {
++      Print (L"Failed in Tpm2GetCapability. Status = %d\n", Status);
++      break;
++    }
++
++    Print (L"TPM revision (TPM_PT_REVISION): %x\n", TpmCap.data.tpmProperties.tpmProperty->value);
++
++    Status = Tpm2GetCapabilityFirmwareVersion (&FirmwareVersion1, &FirmwareVersion2);
++    if (EFI_ERROR (Status)) {
++      Print (L"Failed in Tpm2GetCapabilityFirmwareVersion. Status = %d\n", Status);
++      break;
++    }
++
++    Print (L"TPM firmware version 1 (TPM_PT_FIRMWARE_VERSION_1): %x\n", FirmwareVersion1);
++    Print (L"TPM firmware version 2 (TPM_PT_FIRMWARE_VERSION_2): %x\n", FirmwareVersion2);
++
 +  } while (0);
 +
    return EFI_SUCCESS;
@@ -48,10 +93,10 @@ index 4520a370e5..5da38049f9 100644
  [FeaturePcd]
    gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
 diff --git a/MdeModulePkg/MdeModulePkg.dsc b/MdeModulePkg/MdeModulePkg.dsc
-index b1d8346186..a9875fc86e 100644
+index b1d8346186..4fa3936d71 100644
 --- a/MdeModulePkg/MdeModulePkg.dsc
 +++ b/MdeModulePkg/MdeModulePkg.dsc
-@@ -104,6 +104,13 @@
+@@ -104,6 +104,12 @@
    VariablePolicyHelperLib|MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf
    MmUnblockMemoryLib|MdePkg/Library/MmUnblockMemoryLib/MmUnblockMemoryLibNull.inf
  
@@ -61,7 +106,25 @@ index b1d8346186..a9875fc86e 100644
 +  Tpm2DeviceLib|SecurityPkg/Library/Tpm2DeviceLibDTpm/Tpm2DeviceLibDTpm.inf
 +  Tpm2CommandLib|SecurityPkg/Library/Tpm2CommandLib/Tpm2CommandLib.inf
 +
-+
  [LibraryClasses.EBC.PEIM]
    IoLib|MdePkg/Library/PeiIoLibCpuIo/PeiIoLibCpuIo.inf
  
+@@ -162,7 +168,7 @@
+ [LibraryClasses.common.UEFI_APPLICATION]
+   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
+   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
+-  DebugLib|MdePkg/Library/UefiDebugLibStdErr/UefiDebugLibStdErr.inf
++  DebugLib|MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
+   FileHandleLib|MdePkg/Library/UefiFileHandleLib/UefiFileHandleLib.inf
+ 
+ [LibraryClasses.common.MM_STANDALONE]
+@@ -202,7 +208,8 @@
+   gEfiMdeModulePkgTokenSpaceGuid.PcdDevicePathSupportDevicePathToText|FALSE
+ 
+ [PcdsFixedAtBuild]
+-  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x0f
++  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x0e
++  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0xFFFFFFFF
+   gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0x06
+   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxSizeNonPopulateCapsule|0x0
+   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxSizePopulateCapsule|0x0
